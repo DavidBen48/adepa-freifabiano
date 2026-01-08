@@ -5,7 +5,6 @@ import { Input, Select } from './components/Input';
 import { Button } from './components/Button';
 import { supabaseService } from './services/supabaseService';
 import { SecurityModal } from './components/SecurityModal';
-import { ChatAssistant } from './components/ChatAssistant';
 import { 
   ShieldCheck, 
   Users, 
@@ -557,9 +556,6 @@ const App = () => {
           </div>
         </div>
       )}
-
-      {/* Chat Assistant - Only when authenticated */}
-      <ChatAssistant members={members} />
     </div>
   );
 };

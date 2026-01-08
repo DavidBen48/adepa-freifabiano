@@ -106,7 +106,11 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
       chatSession = model.chats.create({
           model: 'gemini-3-flash-preview',
           config: { 
-              tools: [{ googleSearch: {} }] 
+              tools: [
+                { 
+                  googleSearch: {} 
+                }
+                ] 
           }
       });
     }
