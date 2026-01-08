@@ -22,7 +22,8 @@ export interface AuthState {
 
 export enum ViewState {
   MEMBERS_LIST = 'MEMBERS_LIST',
-  ADD_MEMBER = 'ADD_MEMBER'
+  ADD_MEMBER = 'ADD_MEMBER',
+  SECURITY_POLICY = 'SECURITY_POLICY'
 }
 
 export interface ChatMessage {
