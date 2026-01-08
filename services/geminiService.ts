@@ -4,11 +4,39 @@ import { Member } from "../types";
 let chatSession: Chat | null = null;
 let ai: GoogleGenAI | null = null;
 
+// Helper to robustly get the API Key in different environments
+const getApiKey = (): string => {
+  // 1. Try standard process.env (bundlers often replace this string literal)
+  if (typeof process !== 'undefined' && process.env?.API_KEY) {
+    return process.env.API_KEY;
+  }
+  
+  // 2. Try Vite specific import.meta.env (Standard for Vercel/Vite deployments)
+  try {
+    // @ts-ignore
+    if (import.meta && import.meta.env) {
+      // @ts-ignore
+      if (import.meta.env.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
+      // @ts-ignore
+      if (import.meta.env.API_KEY) return import.meta.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore errors in environments that don't support import.meta
+  }
+
+  return '';
+};
+
 // Lazy initialization to prevent top-level crashes
 const getAi = () => {
   if (!ai) {
-    // Ensure we don't crash if env is missing; polyfill should handle it, but fallback string ensures constructor doesn't throw empty error immediately
-    const apiKey = process.env.API_KEY || 'MISSING_KEY';
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      console.error("ERRO CRÍTICO: Chave de API não encontrada. Adicione 'VITE_API_KEY' nas variáveis de ambiente do Vercel.");
+      throw new Error("API_KEY_MISSING");
+    }
+    
     ai = new GoogleGenAI({ apiKey });
   }
   return ai;
@@ -56,16 +84,16 @@ export const initializeChat = (members: Member[], userName?: string) => {
       ${memberContext}
     `;
 
+    // Usando gemini-3-flash-preview que é mais rápido e estável para setups iniciais
     chatSession = model.chats.create({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       config: {
         systemInstruction: systemInstruction,
-        thinkingConfig: { thinkingBudget: 1024 }, // Basic thinking for logic
-        tools: [{ googleSearch: {} }] // Grounding for theological/news questions
+        tools: [{ googleSearch: {} }]
       }
     });
   } catch (error) {
-    console.error("Failed to initialize chat session:", error);
+    console.error("Falha ao inicializar sessão de chat:", error);
   }
 };
 
@@ -76,7 +104,7 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
     if (!chatSession) {
       // Fallback if chat wasn't initialized with data yet
       chatSession = model.chats.create({
-          model: 'gemini-3-pro-preview',
+          model: 'gemini-3-flash-preview',
           config: { 
               tools: [{ googleSearch: {} }] 
           }
@@ -85,8 +113,14 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
 
     const response = await chatSession.sendMessage({ message });
     return response.text || "Desculpe, não consegui processar a resposta.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
-    return "Ocorreu um erro ao comunicar com o FREI.ai. Verifique se a chave API está configurada.";
+    
+    // Tratamento de erro específico para chave faltando
+    if (error.message === "API_KEY_MISSING" || (error.message && error.message.includes("API key"))) {
+       return "⚠️ ERRO DE CONFIGURAÇÃO: A Chave de API não foi detectada. \n\nNo Vercel, vá em Settings > Environment Variables e adicione 'VITE_API_KEY' com sua chave.";
+    }
+    
+    return "Ocorreu um erro ao comunicar com o FREI.ai. Tente recarregar a página.";
   }
 };

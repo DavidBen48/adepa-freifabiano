@@ -283,6 +283,18 @@ const App = () => {
         {/* VIEW: MEMBER LIST */}
         {view === ViewState.MEMBERS_LIST && (
           <div className="space-y-6">
+            
+            {/* Header com Contador */}
+            <div className="flex flex-col sm:flex-row justify-between items-end gap-2 mb-2">
+                <div className="text-slate-400 text-sm">
+                    Gerenciamento e Consulta
+                </div>
+                <div className="px-4 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-sm text-slate-300 shadow-sm flex items-center gap-2">
+                    <Users size={14} className="text-royal-500"/>
+                    Total de Membros: <span className="text-royal-400 font-bold text-base">{members.length}</span>
+                </div>
+            </div>
+
             {/* Search Bar */}
             <div className="relative">
                <Search className="absolute left-3 top-3 text-slate-500" size={20} />
@@ -546,7 +558,7 @@ const App = () => {
         </div>
       )}
 
-      {/* AI Assistant - Always visible if authenticated */}
+      {/* Chat Assistant - Only when authenticated */}
       <ChatAssistant members={members} />
     </div>
   );
