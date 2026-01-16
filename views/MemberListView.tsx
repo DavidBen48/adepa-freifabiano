@@ -20,9 +20,16 @@ export const MemberListView: React.FC<MemberListViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredMembers = members.filter(m => 
+  // 1. Primeiro filtramos
+  const filtered = members.filter(m => 
     m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.cpf.includes(searchTerm)
+  );
+
+  // 2. Depois ordenamos alfabeticamente seguindo as regras PT-BR
+  // localeCompare com sensitivity: 'base' garante a ordem correta (Ana Carla -> Ana Keren -> Antônio)
+  const sortedMembers = filtered.sort((a, b) => 
+    a.fullName.localeCompare(b.fullName, 'pt-BR', { sensitivity: 'base' })
   );
 
   return (
@@ -52,15 +59,15 @@ export const MemberListView: React.FC<MemberListViewProps> = ({
       </div>
 
       {/* List */}
-      {isLoading ? (
+      {isLoading && members.length === 0 ? (
         <div className="text-center py-20 text-slate-500">Carregando dados...</div>
-      ) : filteredMembers.length === 0 ? (
+      ) : sortedMembers.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-slate-800 rounded-lg">
           <p className="text-slate-400">Nenhum membro encontrado.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {filteredMembers.map((member) => (
+          {sortedMembers.map((member) => (
             <div key={member.id} className="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col md:flex-row md:items-center justify-between group hover:border-slate-700 transition-colors">
               <div className="mb-4 md:mb-0 flex items-center gap-4">
                 {/* Avatar */}
@@ -83,30 +90,27 @@ export const MemberListView: React.FC<MemberListViewProps> = ({
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 pl-16 md:pl-0">
+              <div className="flex flex-col sm:flex-row items-center gap-2 pl-16 md:pl-0">
                 <Button 
                   variant="secondary" 
-                  className="text-xs px-3 py-1.5"
+                  className="text-[10px] uppercase font-bold px-3 py-2 w-full sm:w-auto"
                   onClick={() => onViewDetails(member)}
-                  title="Ler Detalhes"
                 >
-                  READ
+                  LER DADOS DO MEMBRO
                 </Button>
                 <Button 
                   variant="secondary"
-                  className="text-xs px-3 py-1.5 text-blue-300 hover:text-blue-200 hover:border-blue-800"
+                  className="text-[10px] uppercase font-bold px-3 py-2 text-blue-300 hover:text-blue-200 hover:border-blue-800 w-full sm:w-auto"
                   onClick={() => onEdit(member)}
-                  title="Atualizar Dados"
                 >
-                  UPDATE
+                  ATUALIZAR DADOS
                 </Button>
                 <Button 
                   variant="danger"
-                  className="text-xs px-3 py-1.5"
+                  className="text-[10px] uppercase font-bold px-3 py-2 w-full sm:w-auto"
                   onClick={() => onDelete(member.id)}
-                  title="Excluir Membro"
                 >
-                  DELETE
+                  DELETAR MEMBRO
                 </Button>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, MapPin } from 'lucide-react';
 import { Button } from './Button';
 import { Member } from '../types';
 
@@ -33,31 +33,59 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, on
           </button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4 text-sm bg-slate-950/50 p-6 rounded-lg border border-slate-800">
-           <div className="space-y-1">
-             <p className="text-slate-500">CPF</p>
-             <p className="text-slate-200">{member.cpf}</p>
-           </div>
-           <div className="space-y-1">
-             <p className="text-slate-500">RG</p>
-             <p className="text-slate-200">{member.rg}</p>
-           </div>
-           <div className="space-y-1">
-             <p className="text-slate-500">Data de Nascimento</p>
-             <p className="text-slate-200">{new Date(member.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
-           </div>
-           <div className="space-y-1">
-             <p className="text-slate-500">Batismo</p>
-             <p className="text-slate-200">{member.baptismDate ? new Date(member.baptismDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</p>
-           </div>
-           <div className="space-y-1">
-             <p className="text-slate-500">Localidade</p>
-             <p className="text-slate-200">{member.locality}</p>
-           </div>
-           <div className="space-y-1">
-             <p className="text-slate-500">Código de Acesso</p>
-             <p className="text-slate-200 font-mono tracking-wider">{member.accessCode || '-'}</p>
-           </div>
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4 text-sm bg-slate-950/50 p-6 rounded-lg border border-slate-800">
+                <div className="space-y-1">
+                    <p className="text-slate-500">CPF</p>
+                    <p className="text-slate-200">{member.cpf}</p>
+                </div>
+                <div className="space-y-1">
+                    <p className="text-slate-500">RG</p>
+                    <p className="text-slate-200">{member.rg}</p>
+                </div>
+                <div className="space-y-1">
+                    <p className="text-slate-500">Data de Nascimento</p>
+                    <p className="text-slate-200">{new Date(member.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
+                </div>
+                <div className="space-y-1">
+                    <p className="text-slate-500">Batismo</p>
+                    <p className="text-slate-200">{member.baptismDate ? new Date(member.baptismDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</p>
+                </div>
+                <div className="space-y-1">
+                    <p className="text-slate-500">Localidade</p>
+                    <p className="text-slate-200">{member.locality}</p>
+                </div>
+                <div className="space-y-1">
+                    <p className="text-slate-500">Código de Acesso</p>
+                    <p className="text-slate-200 font-mono tracking-wider">{member.accessCode || '-'}</p>
+                </div>
+            </div>
+
+            {/* Endereço */}
+            <div className="bg-slate-950/50 p-6 rounded-lg border border-slate-800">
+                 <div className="flex items-center gap-2 mb-4 text-royal-400">
+                    <MapPin size={18} />
+                    <h4 className="font-semibold text-sm uppercase tracking-wider">Endereço</h4>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-4 text-sm">
+                     <div className="space-y-1 md:col-span-2">
+                        <p className="text-slate-500">Logradouro</p>
+                        <p className="text-slate-200">{member.street ? `${member.street}, ${member.number || 'S/N'}` : 'Não informado'}</p>
+                     </div>
+                     <div className="space-y-1">
+                        <p className="text-slate-500">Bairro</p>
+                        <p className="text-slate-200">{member.neighborhood || '-'}</p>
+                     </div>
+                     <div className="space-y-1">
+                        <p className="text-slate-500">Cidade</p>
+                        <p className="text-slate-200">{member.city || '-'}</p>
+                     </div>
+                     <div className="space-y-1">
+                        <p className="text-slate-500">CEP</p>
+                        <p className="text-slate-200">{member.zipCode || '-'}</p>
+                     </div>
+                 </div>
+            </div>
         </div>
 
         <div className="mt-8 flex justify-end">

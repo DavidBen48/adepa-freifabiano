@@ -62,6 +62,7 @@ const App = () => {
     setView(ViewState.MEMBERS_LIST);
   };
 
+  // --- CRUD SPEED OPTIMIZATION (Optimistic Updates) ---
   const handleSaveMember = async (memberForm: Omit<Member, 'id' | 'createdAt'>) => {
     setIsLoading(true);
     try {
@@ -72,12 +73,20 @@ const App = () => {
       };
 
       if (memberToEdit) {
-        await supabaseService.updateMember(memberToEdit.id, payload);
+        // Optimistic: Update in Supabase, then update local state manually
+        // We do NOT fetch all members again. This makes it instant.
+        const updatedMember = await supabaseService.updateMember(memberToEdit.id, payload);
+        
+        if (updatedMember) {
+          setMembers(prevMembers => 
+            prevMembers.map(m => m.id === updatedMember.id ? updatedMember : m)
+          );
+        }
       } else {
-        await supabaseService.addMember(payload);
+        const newMember = await supabaseService.addMember(payload);
+        setMembers(prevMembers => [newMember, ...prevMembers]);
       }
 
-      await loadMembers();
       setMemberToEdit(undefined);
       setView(ViewState.MEMBERS_LIST);
     } catch (error) {
@@ -104,11 +113,17 @@ const App = () => {
   };
 
   const handleSecurityConfirm = async () => {
-    if (securityModal.type === 'DELETE' && securityModal.memberId) {
-      await supabaseService.deleteMember(securityModal.memberId);
-      loadMembers();
-    } else if (securityModal.type === 'UPDATE' && securityModal.memberId) {
-      const memberFound = members.find(m => m.id === securityModal.memberId);
+    const targetId = securityModal.memberId;
+    
+    if (securityModal.type === 'DELETE' && targetId) {
+      // Optimistic Delete: Remove from UI immediately, then sync with DB
+      setMembers(prev => prev.filter(m => m.id !== targetId));
+      
+      // Execute in background
+      await supabaseService.deleteMember(targetId);
+      
+    } else if (securityModal.type === 'UPDATE' && targetId) {
+      const memberFound = members.find(m => m.id === targetId);
       if (memberFound) {
         setMemberToEdit(memberFound);
         setView(ViewState.ADD_MEMBER);

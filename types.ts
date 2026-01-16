@@ -12,6 +12,14 @@ export interface Member {
   baptismDate?: string; // YYYY-MM-DD
   accessCode?: string; // Max 4 digits
   photoUrl?: string; // Base64 string for the photo
+  
+  // Endereço (Opcionais)
+  street?: string;
+  number?: string;
+  zipCode?: string;
+  neighborhood?: string;
+  city?: string;
+
   createdAt: string;
 }
 
