@@ -5,6 +5,16 @@ export const APP_CONFIG = {
   LOCALITY: 'Frei Fabiano'
 };
 
+export const CHURCH_ADDRESS = {
+  cep: '26180310',
+  street: 'Rua Lilian',
+  number: '39',
+  neighborhood: 'Vale do Ipê',
+  city: 'Belford Roxo',
+  state: 'Rio de Janeiro',
+  fullAddress: 'Rua Lilian, 39, Vale do Ipê, Belford Roxo, Rio de Janeiro, Brasil'
+};
+
 export const ROLES = [
   'Membro',
   'Auxiliar de Trabalho',

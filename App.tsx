@@ -12,11 +12,13 @@ import { LoginView } from './views/LoginView';
 import { SecurityPolicyView } from './views/SecurityPolicyView';
 import { MemberListView } from './views/MemberListView';
 import { MemberFormView } from './views/MemberFormView';
+import { VisitMemberView } from './views/VisitMemberView';
 
 import { 
   Users, 
   UserPlus, 
   LogOut,
+  Map
 } from 'lucide-react';
 
 const App = () => {
@@ -166,8 +168,8 @@ const App = () => {
       </header>
 
       {/* Tabs / Navigation */}
-      <div className="bg-slate-900/50 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 flex gap-6">
+      <div className="bg-slate-900/50 border-b border-slate-800 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-4 flex gap-6 min-w-max">
           <button
             onClick={() => { setView(ViewState.MEMBERS_LIST); setMemberToEdit(undefined); }}
             className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === ViewState.MEMBERS_LIST ? 'border-royal-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
@@ -181,6 +183,13 @@ const App = () => {
           >
             <UserPlus size={18} />
             {memberToEdit ? 'Editar Membro' : 'Adicionar Membros'}
+          </button>
+          <button
+            onClick={() => { setView(ViewState.VISIT_MEMBER); setMemberToEdit(undefined); }}
+            className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === ViewState.VISIT_MEMBER ? 'border-royal-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+          >
+            <Map size={18} />
+            Visitar Membro
           </button>
         </div>
       </div>
@@ -205,6 +214,10 @@ const App = () => {
             onSave={handleSaveMember}
             onCancel={() => { setView(ViewState.MEMBERS_LIST); setMemberToEdit(undefined); }}
           />
+        )}
+
+        {view === ViewState.VISIT_MEMBER && (
+          <VisitMemberView members={members} />
         )}
       </main>
 
