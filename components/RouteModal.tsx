@@ -124,34 +124,35 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose }) => {
 
         const street = member.street ? member.street.trim() : '';
         const neighborhood = member.neighborhood ? member.neighborhood.trim() : '';
-        const city = member.city ? member.city.trim() : CHURCH_ADDRESS.city; // Contexto padrão
+        const city = member.city ? member.city.trim() : CHURCH_ADDRESS.city;
         const state = CHURCH_ADDRESS.state || 'Rio de Janeiro';
         const zip = member.zipCode ? member.zipCode.trim() : '';
 
-        // --- PLANO A: RUA + BAIRRO (Endpoint 1 de 3) ---
+        // --- PLANO A: Endpoint 1 de 3 (RUA + BAIRRO) ---
+        // Prioridade máxima
         if (!memberCoords && street && neighborhood) {
-            console.log("Executando PLANO A: Rua + Bairro");
+            console.log("Tentando PLANO A: Rua + Bairro");
             const query1 = `${street}, ${neighborhood}, ${city}, ${state}, Brasil`;
             memberCoords = await getCoordinates(query1);
             if (memberCoords) successPlan = 'plan1';
         }
 
-        // --- PLANO B: CEP (Endpoint 2 de 3 - Fallback Imediato) ---
-        // Roda se o Plano A falhou ou se não tinha dados para o Plano A, mas tem CEP
+        // --- PLANO B: Endpoint 2 de 3 (CEP) ---
+        // Se Plano A falhou ou não tinha dados suficientes
         if (!memberCoords && zip) {
-            console.log("Plano A falhou ou sem dados. Executando PLANO B: Apenas CEP");
+            console.log("Tentando PLANO B: Apenas CEP");
             const query2 = `${zip}, Brasil`;
             memberCoords = await getCoordinates(query2);
             if (memberCoords) successPlan = 'plan2';
         }
 
-        // --- PLANO C: RUA + CEP + CIDADE + ESTADO (Endpoint 3 de 3 - Último Recurso) ---
-        // Roda apenas se A e B falharam e temos Rua e CEP
+        // --- PLANO C: Endpoint 3 de 3 (HÍBRIDO: RUA + CEP) ---
+        // Último recurso se A e B falharam
         if (!memberCoords && street && zip) {
-            console.log("Planos A e B falharam. Executando PLANO C: Híbrido");
-            const query3 = `${street}, ${city}, ${state}, ${zip}, Brasil`;
-            memberCoords = await getCoordinates(query3);
-            if (memberCoords) successPlan = 'plan3';
+             console.log("Tentando PLANO C: Rua + CEP + Cidade + Estado");
+             const query3 = `${street}, ${city}, ${state}, ${zip}, Brasil`;
+             memberCoords = await getCoordinates(query3);
+             if (memberCoords) successPlan = 'plan3';
         }
 
         // --- VERIFICAÇÃO FINAL ---
@@ -276,7 +277,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose }) => {
                             </div>
                         </div>
                         <p className="text-xs font-mono text-center animate-pulse text-royal-400">
-                           📡 Backend triangulando endpoints de mapa...
+                           📡 Backend trabalhando com API...
                         </p>
                     </div>
                 ) : error ? (
