@@ -273,7 +273,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
        <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-4xl shadow-2xl flex flex-col h-[90vh] overflow-hidden">
           
           {/* Header */}
-          <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+          <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
              <div className="flex items-center gap-3">
                 <div className="p-2 bg-royal-900/30 rounded-full">
                     <Navigation className="text-royal-500" size={20}/>
@@ -282,21 +282,17 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                     <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-white text-base mr-2">Trajeto de Visita</h3>
                         
-                        {/* PLANO A: Verde */}
+                        {/* Status Tags */}
                         {!loading && !error && methodUsed === 'plan1' && (
                             <span className="text-[10px] bg-emerald-900/30 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded flex items-center gap-1 font-medium animate-in fade-in zoom-in duration-300">
                                 <CheckCircle2 size={10} /> Endpoint 1/3 • alta performance e alta precisão
                             </span>
                         )}
-                        
-                        {/* PLANO B: Laranja */}
                         {!loading && !error && methodUsed === 'plan2' && (
                             <span className="text-[10px] bg-orange-900/30 text-orange-400 border border-orange-900 px-2 py-0.5 rounded flex items-center gap-1 font-medium animate-in fade-in zoom-in duration-300">
                                 <Activity size={10} /> Endpoint 2/3 • performance hibrido e baixa precisão
                             </span>
                         )}
-                        
-                        {/* PLANO C: Vermelho */}
                         {!loading && !error && methodUsed === 'plan3' && (
                             <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-900 px-2 py-0.5 rounded flex items-center gap-1 font-medium animate-in fade-in zoom-in duration-300">
                                 <AlertTriangle size={10} /> Endpoint 3/3 • baixa performance e precisão forçada
@@ -314,12 +310,13 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
              </button>
           </div>
 
-          <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+          {/* Main Content: Flex Col Reverse on Mobile (Map Top), Flex Row on Desktop */}
+          <div className="flex-1 flex flex-col-reverse md:flex-row h-full overflow-hidden">
              
-             {/* Left Panel: Stats */}
-             <div className="w-full md:w-80 bg-slate-950 p-6 flex flex-col gap-6 border-r border-slate-800 overflow-y-auto z-20">
+             {/* Stats Panel */}
+             <div className="w-full md:w-80 bg-slate-950 p-6 flex flex-col gap-6 border-t md:border-t-0 md:border-r border-slate-800 overflow-y-auto z-20 shrink-0">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
+                    <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500 py-10 md:py-0">
                         <div className="relative">
                             <div className="w-10 h-10 border-2 border-royal-500/30 border-t-royal-500 rounded-full animate-spin"></div>
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -331,13 +328,13 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                         </p>
                     </div>
                 ) : error ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-2 text-red-400 text-center">
+                    <div className="flex flex-col items-center justify-center h-full gap-2 text-red-400 text-center py-10 md:py-0">
                         <AlertCircle size={32} />
                         <p className="text-sm">{error}</p>
                     </div>
                 ) : (
                     <>
-                        {/* Preço */}
+                        {/* Preço - Destaque Principal */}
                         <div className="bg-slate-900 rounded-lg p-5 border border-slate-800 shadow-lg">
                             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Valor Estimado (Uber)</span>
                             <div className="flex items-baseline gap-1 mt-1">
@@ -353,7 +350,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                             </p>
                         </div>
 
-                        {/* Detalhes */}
+                        {/* Detalhes Técnicos */}
                         <div className="space-y-4">
                             <div className="flex items-center gap-4 text-slate-200">
                                 <div className="w-10 h-10 rounded bg-slate-900 flex items-center justify-center border border-slate-800">
@@ -406,8 +403,8 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                 )}
              </div>
 
-             {/* Right Panel: Map */}
-             <div className="flex-1 bg-slate-800 relative z-10">
+             {/* Map Panel: min-h-[55vh] ensure big map on mobile */}
+             <div className="flex-1 bg-slate-800 relative z-10 min-h-[55vh] md:min-h-0">
                 {!loading && !error && routeInfo.startCoords && routeInfo.endCoords && (
                     <MapContainer 
                         center={routeInfo.startCoords} 

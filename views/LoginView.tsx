@@ -29,21 +29,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onViewPoli
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-950 text-slate-100">
-      {/* Left Side */}
-      <div className="w-full md:w-1/2 p-12 flex flex-col justify-center items-start border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950 relative overflow-hidden">
+      {/* Left Side (Branding) */}
+      <div className="w-full md:w-1/2 p-12 flex flex-col justify-center items-start border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950 relative overflow-hidden shrink-0">
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-600 to-transparent"></div>
         <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4 text-white">
           MEMBERS<span className="text-royal-500">.AI</span>
         </h1>
         <h2 className="text-2xl text-slate-400 font-light mb-8">ADEPA - Frei Fabiano</h2>
-        <div className="mt-auto">
+        
+        {/* Desktop Footer (Hidden on Mobile) */}
+        <div className="mt-auto hidden md:block">
           <p className="text-sm text-slate-600 uppercase tracking-widest font-semibold">Developed by the CEO of Ben.AI: David Ben</p>
           <p className="text-sm text-slate-500 mt-2 font-mono font-bold">versão 2.5.1 (beta)</p>
         </div>
       </div>
 
-      {/* Right Side - Form */}
-      <div className="w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center bg-slate-900">
+      {/* Right Side (Form) */}
+      <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col items-center justify-center bg-slate-900">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-3">
             <ShieldCheck className="text-royal-500" size={32} />
@@ -98,6 +100,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onViewPoli
               ver política de segurança do site
             </button>
           </div>
+        </div>
+
+        {/* Mobile Footer (Visible only on Mobile, below form) */}
+        <div className="mt-12 text-center md:hidden border-t border-slate-800 pt-8 w-full">
+          <p className="text-[10px] text-slate-600 uppercase tracking-widest font-semibold">Developed by the CEO of Ben.AI: David Ben</p>
+          <p className="text-[10px] text-slate-500 mt-1 font-mono font-bold">versão 2.5.1 (beta)</p>
         </div>
       </div>
     </div>
