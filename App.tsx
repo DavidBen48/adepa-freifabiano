@@ -156,7 +156,7 @@ const App = () => {
 
   // Determine Read-Only Status
   const isReadOnly = auth.role === 'guest';
-  const adminName = auth.role === 'admin' ? 'Laryssa Sabino' : 'Visitante';
+  const adminName = auth.role === 'admin' ? 'freifabiano' : 'Visitante';
 
   // --- RENDER DASHBOARD ---
   return (

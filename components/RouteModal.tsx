@@ -192,8 +192,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
 
         // --- LÓGICA DE CASCATA (WATERFALL) ---
 
-        // Endpoint 1/3: Rua + Bairro (Alta precisão solicitada)
-        // Adicionamos City/State/Brasil para garantir que não busque em outro estado/país
+        // Endpoint 1/3: Rua + Bairro
         if (!memberCoords && street && neighborhood) {
              const query1 = `${street}, ${neighborhood}, ${city}, ${state}, Brasil`;
              // console.log("Trying Endpoint 1:", query1);
@@ -201,7 +200,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
              if (memberCoords) successPlan = 'plan1';
         }
 
-        // Endpoint 2/3: Pelo CEP (Híbrido)
+        // Endpoint 2/3: Pelo CEP
         if (!memberCoords && zip) {
             const query2 = `${zip}, Brasil`;
             // console.log("Trying Endpoint 2:", query2);
@@ -209,8 +208,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
             if (memberCoords) successPlan = 'plan2';
         }
 
-        // Endpoint 3/3: Rua + CEP + Cidade + Estado (Forçado/Baixa Performance)
-        // Tenta combinar tudo se os anteriores falharam
+        // Endpoint 3/3: Rua + CEP + Cidade + Estado
         if (!memberCoords && street) {
              const query3 = `${street}, ${zip}, ${city}, ${state}, Brasil`;
              // console.log("Trying Endpoint 3:", query3);
@@ -220,7 +218,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
 
         if (!memberCoords) {
             // Última tentativa de desespero: Só a cidade e estado para não quebrar a UI
-            // Não marcamos successPlan para saber que falhou a precisão
             memberCoords = await getCoordinates(`${city}, ${state}, Brasil`);
         }
 
@@ -240,21 +237,27 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
         }
 
         const distKm = route.distance / 1000;
-        const durMin = Math.round(route.duration / 60); // Car Time
         
-        // Estimations
-        const motoMin = Math.max(1, Math.round(durMin * 0.80)); // ~20% faster
-        const walkMin = Math.round(distKm * 15); // ~15 min per km
+        // Cálculo de Tempo Personalizado (Regras Fixas)
+        // Carro: 2:40 minutos por km = 160 segundos por km
+        const carSeconds = distKm * 160;
+        const durMin = Math.round(carSeconds / 60); 
+        
+        // Moto: 15% menos tempo que o carro
+        const motoMin = Math.max(1, Math.round(durMin * 0.85)); 
+        
+        // Caminhando: ~15 min per km (mantido)
+        const walkMin = Math.round(distKm * 15); 
 
-        // Pricing Logic: 1km = R$8,00 base
-        // Margem de erro entre 6 e 10 reais
-        const baseRate = 8.0; 
+        // Pricing Logic: 1km = R$6,00 base
+        // Margem de erro entre -10% e +20%
+        const baseRate = 6.0; 
         const rawCalc = distKm * baseRate;
-        const minPrice = Math.floor(rawCalc * 0.8); // Margem baixa
-        const maxPrice = Math.ceil(rawCalc * 1.2); // Margem alta
+        const minPrice = Math.floor(rawCalc * 0.9); // -10%
+        const maxPrice = Math.ceil(rawCalc * 1.2); // +20%
         const avgPrice = Math.round(rawCalc);
 
-        setPrice({ avg: avgPrice < 7 ? 7 : avgPrice }); // Mínimo Uber geralmente ~7 reais
+        setPrice({ avg: avgPrice < 6 ? 6 : avgPrice }); // Mínimo de 6 reais
 
         setRouteInfo({
             distanceKm: parseFloat(distKm.toFixed(1)),
@@ -333,7 +336,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
      }
   };
 
-  // String formatada do destino
+  // String formatada do destino (EXATAMENTE COMO PEDIDO)
   const destinationString = `Destino: ${member.street || ''}, nº${member.number || 'S/N'} - ${member.neighborhood || ''} | ${member.city || ''}`;
 
   return (
@@ -497,7 +500,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                         <span className="text-sm text-slate-400">R$</span>
                                         <span className="text-4xl font-bold text-white">{price.avg},00</span>
                                     </div>
-                                    <p className="text-[10px] text-slate-600 mt-2">Tarifa base R$ 8,00/km.</p>
+                                    <p className="text-[10px] text-slate-600 mt-2">Tarifa base R$ 6,00/km.</p>
                                 </div>
 
                                 <div className="space-y-3">
