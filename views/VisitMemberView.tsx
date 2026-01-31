@@ -6,9 +6,10 @@ import { RouteModal } from '../components/RouteModal';
 
 interface VisitMemberViewProps {
   members: Member[];
+  isReadOnly?: boolean;
 }
 
-export const VisitMemberView: React.FC<VisitMemberViewProps> = ({ members }) => {
+export const VisitMemberView: React.FC<VisitMemberViewProps> = ({ members, isReadOnly = false }) => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   // Filtrar apenas membros que possuem endereço cadastrado para visita
@@ -70,7 +71,8 @@ export const VisitMemberView: React.FC<VisitMemberViewProps> = ({ members }) => 
        {selectedMember && (
          <RouteModal 
            member={selectedMember} 
-           onClose={() => setSelectedMember(null)} 
+           onClose={() => setSelectedMember(null)}
+           isReadOnly={isReadOnly}
          />
        )}
     </div>

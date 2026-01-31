@@ -53,8 +53,8 @@ const App = () => {
     setIsLoading(false);
   };
 
-  const handleLoginSuccess = (user: string) => {
-    setAuth({ isAuthenticated: true, user });
+  const handleLoginSuccess = (user: string, role: 'admin' | 'guest') => {
+    setAuth({ isAuthenticated: true, user, role });
     setView(ViewState.MEMBERS_LIST);
   };
 
@@ -66,6 +66,10 @@ const App = () => {
 
   // --- CRUD SPEED OPTIMIZATION (Optimistic Updates) ---
   const handleSaveMember = async (memberForm: Omit<Member, 'id' | 'createdAt'>) => {
+    if (auth.role === 'guest') {
+        alert("Modo visitante: Ação não permitida.");
+        return;
+    }
     setIsLoading(true);
     try {
       const payload = {
@@ -107,10 +111,12 @@ const App = () => {
   }
 
   const initiateEditAuth = (member: Member) => {
+     if (auth.role === 'guest') return;
      setSecurityModal({ isOpen: true, type: 'UPDATE', memberId: member.id });
   };
 
   const initiateDeleteAuth = (id: string) => {
+    if (auth.role === 'guest') return;
     setSecurityModal({ isOpen: true, type: 'DELETE', memberId: id });
   };
 
@@ -148,6 +154,10 @@ const App = () => {
     );
   }
 
+  // Determine Read-Only Status
+  const isReadOnly = auth.role === 'guest';
+  const adminName = auth.role === 'admin' ? 'Laryssa Sabino' : 'Visitante';
+
   // --- RENDER DASHBOARD ---
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -159,7 +169,10 @@ const App = () => {
             <span className="font-semibold text-lg hidden md:block">MEMBERS<span className="text-royal-500">.AI</span> <span className="text-slate-500 text-sm font-normal">| Frei Fabiano</span></span>
           </div>
           <div className="flex items-center gap-4">
-             <span className="text-xs text-slate-400 hidden sm:block">Admin: {APP_CONFIG.USER}</span>
+             <span className="text-xs text-slate-400 hidden sm:block">
+                {auth.role === 'admin' ? 'Admin: ' : 'Usuário: '} 
+                <span className={auth.role === 'admin' ? 'text-royal-400 font-bold' : 'text-slate-300'}>{adminName}</span>
+             </span>
              <Button variant="ghost" onClick={handleLogout} className="text-xs p-1">
                <LogOut size={16} className="mr-2"/> Sair
              </Button>
@@ -203,6 +216,7 @@ const App = () => {
             onEdit={initiateEditAuth}
             onDelete={initiateDeleteAuth}
             onViewDetails={setViewingMember}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -213,11 +227,12 @@ const App = () => {
             isLoading={isLoading}
             onSave={handleSaveMember}
             onCancel={() => { setView(ViewState.MEMBERS_LIST); setMemberToEdit(undefined); }}
+            isReadOnly={isReadOnly}
           />
         )}
 
         {view === ViewState.VISIT_MEMBER && (
-          <VisitMemberView members={members} />
+          <VisitMemberView members={members} isReadOnly={isReadOnly} />
         )}
       </main>
 

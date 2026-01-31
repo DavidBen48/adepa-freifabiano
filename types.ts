@@ -26,6 +26,7 @@ export interface Member {
 export interface AuthState {
   isAuthenticated: boolean;
   user?: string;
+  role?: 'admin' | 'guest';
 }
 
 export enum ViewState {

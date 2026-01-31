@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, User } from 'lucide-react';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { APP_CONFIG } from '../constants';
 
 interface LoginViewProps {
-  onLoginSuccess: (user: string) => void;
+  onLoginSuccess: (user: string, role: 'admin' | 'guest') => void;
   onViewPolicy: () => void;
 }
 
@@ -16,11 +16,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onViewPoli
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginForm.user === APP_CONFIG.USER && loginForm.pass === APP_CONFIG.PASS) {
-      onLoginSuccess(APP_CONFIG.USER);
+      onLoginSuccess(APP_CONFIG.USER, 'admin');
       setLoginError('');
     } else {
       setLoginError('Credenciais inválidas. Acesso negado.');
     }
+  };
+
+  const handleGuestLogin = () => {
+    onLoginSuccess('Visitante', 'guest');
   };
 
   return (
@@ -34,7 +38,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onViewPoli
         <h2 className="text-2xl text-slate-400 font-light mb-8">ADEPA - Frei Fabiano</h2>
         <div className="mt-auto">
           <p className="text-sm text-slate-600 uppercase tracking-widest font-semibold">Developed by the CEO of Ben.AI: David Ben</p>
-          <p className="text-[10px] text-slate-700 mt-1 uppercase tracking-wider font-mono">versão 2.1.2</p>
+          <p className="text-sm text-slate-500 mt-2 font-mono font-bold">versão 2.5.1 (beta)</p>
         </div>
       </div>
 
@@ -72,13 +76,24 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onViewPoli
             </Button>
           </form>
           
-          <div className="mt-6 text-center space-y-3">
+          <div className="mt-6 text-center space-y-4">
             <p className="text-slate-500 text-xs">
               Acesso restrito a administradores. Não há opção de recuperação automática.
             </p>
+
+            <Button 
+              type="button" 
+              variant="secondary" 
+              className="w-full py-2 text-xs font-semibold uppercase tracking-wide border-slate-700 hover:bg-slate-800"
+              onClick={handleGuestLogin}
+            >
+              <User size={14} className="mr-2" />
+              Entrar sem Cadastro
+            </Button>
+
             <button 
               onClick={onViewPolicy}
-              className="text-royal-500 hover:text-royal-400 text-xs font-medium underline underline-offset-4 transition-colors"
+              className="text-royal-500 hover:text-royal-400 text-xs font-medium underline underline-offset-4 transition-colors pt-2 block w-full"
             >
               ver política de segurança do site
             </button>

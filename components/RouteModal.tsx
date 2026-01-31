@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { X, Navigation, Car, Clock, MapPin, AlertCircle, CheckCircle2, AlertTriangle, Search, Activity } from 'lucide-react';
+import { X, Navigation, Car, Clock, MapPin, AlertCircle, CheckCircle2, AlertTriangle, Search, Activity, Lock } from 'lucide-react';
 import { Member } from '../types';
 import { CHURCH_ADDRESS } from '../constants';
 
@@ -122,9 +122,10 @@ const createIcon = (label: string, color: string) => {
 interface RouteModalProps {
   member: Member;
   onClose: () => void;
+  isReadOnly?: boolean;
 }
 
-export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose }) => {
+export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [methodUsed, setMethodUsed] = useState<'plan1' | 'plan2' | 'plan3' | null>(null);
@@ -386,15 +387,20 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose }) => {
                             </div>
                         </div>
 
-                        <div className="mt-auto pt-4">
+                        <div className="mt-auto pt-4 relative">
                             <a 
-                                href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(CHURCH_ADDRESS.fullAddress)}&destination=${encodeURIComponent(`${member.street}, ${member.number}, ${member.city}`)}&travelmode=driving`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="block w-full py-3 bg-white text-slate-900 text-center font-bold rounded hover:bg-slate-200 transition-colors"
+                                href={isReadOnly ? "#" : `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(CHURCH_ADDRESS.fullAddress)}&destination=${encodeURIComponent(`${member.street}, ${member.number}, ${member.city}`)}&travelmode=driving`}
+                                target={isReadOnly ? undefined : "_blank"}
+                                rel={isReadOnly ? undefined : "noreferrer"}
+                                className={`block w-full py-3 bg-white text-slate-900 text-center font-bold rounded transition-colors ${isReadOnly ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-200'}`}
                             >
-                                Abrir no Google Maps App
+                                {isReadOnly ? "Abertura de GPS Bloqueada" : "Abrir no Google Maps App"}
                             </a>
+                            {isReadOnly && (
+                                <div className="absolute -top-3 right-0 bg-red-900/90 text-red-100 text-[10px] px-2 py-1 rounded-full flex items-center gap-1 border border-red-500/30">
+                                    <Lock size={10} /> Visitante
+                                </div>
+                            )}
                         </div>
                     </>
                 )}

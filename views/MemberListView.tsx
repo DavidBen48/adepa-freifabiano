@@ -9,6 +9,7 @@ interface MemberListViewProps {
   onEdit: (member: Member) => void;
   onDelete: (id: string) => void;
   onViewDetails: (member: Member) => void;
+  isReadOnly?: boolean;
 }
 
 export const MemberListView: React.FC<MemberListViewProps> = ({ 
@@ -16,7 +17,8 @@ export const MemberListView: React.FC<MemberListViewProps> = ({
   isLoading, 
   onEdit, 
   onDelete, 
-  onViewDetails 
+  onViewDetails,
+  isReadOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -27,7 +29,6 @@ export const MemberListView: React.FC<MemberListViewProps> = ({
   );
 
   // 2. Depois ordenamos alfabeticamente seguindo as regras PT-BR
-  // localeCompare com sensitivity: 'base' garante a ordem correta (Ana Carla -> Ana Keren -> Antônio)
   const sortedMembers = filtered.sort((a, b) => 
     a.fullName.localeCompare(b.fullName, 'pt-BR', { sensitivity: 'base' })
   );
@@ -100,15 +101,19 @@ export const MemberListView: React.FC<MemberListViewProps> = ({
                 </Button>
                 <Button 
                   variant="secondary"
-                  className="text-[10px] uppercase font-bold px-3 py-2 text-blue-300 hover:text-blue-200 hover:border-blue-800 w-full sm:w-auto"
-                  onClick={() => onEdit(member)}
+                  className={`text-[10px] uppercase font-bold px-3 py-2 w-full sm:w-auto ${isReadOnly ? 'opacity-50 cursor-not-allowed text-slate-500 border-slate-800' : 'text-blue-300 hover:text-blue-200 hover:border-blue-800'}`}
+                  onClick={() => !isReadOnly && onEdit(member)}
+                  disabled={isReadOnly}
+                  title={isReadOnly ? "Ação restrita a administradores" : "Editar"}
                 >
                   ATUALIZAR DADOS
                 </Button>
                 <Button 
                   variant="danger"
-                  className="text-[10px] uppercase font-bold px-3 py-2 w-full sm:w-auto"
-                  onClick={() => onDelete(member.id)}
+                  className={`text-[10px] uppercase font-bold px-3 py-2 w-full sm:w-auto ${isReadOnly ? 'opacity-50 cursor-not-allowed bg-slate-800 border-slate-800 text-slate-500' : ''}`}
+                  onClick={() => !isReadOnly && onDelete(member.id)}
+                  disabled={isReadOnly}
+                  title={isReadOnly ? "Ação restrita a administradores" : "Deletar"}
                 >
                   DELETAR MEMBRO
                 </Button>
