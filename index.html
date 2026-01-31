@@ -44,9 +44,7 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #334155; 
       }
-      /* Map Z-Index fix */
-      .leaflet-pane { z-index: 10 !important; }
-      .leaflet-top, .leaflet-bottom { z-index: 20 !important; }
+      /* Removed incorrect Leaflet z-index overrides that were breaking map interactivity */
     </style>
     <!-- Polyfill seguro para evitar crash 'process is not defined' no navegador -->
     <script>

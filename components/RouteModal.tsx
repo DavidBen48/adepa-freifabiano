@@ -290,12 +290,19 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsDragging(true);
     startY.current = e.touches[0].clientY;
-    const el = e.currentTarget.closest('.bottom-sheet') as HTMLElement;
+    // Pega o elemento atual (o bottom-sheet)
+    const el = e.currentTarget as HTMLElement;
     startHeight.current = el ? el.offsetHeight : 0;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return;
+    
+    // Evita o scroll da página enquanto arrasta a sheet
+    // Isso dá a sensação de aplicativo nativo
+    // Nota: O conteúdo interno ainda pode ter scroll se não propagarmos, 
+    // mas aqui estamos priorizando o movimento da sheet.
+    
     const currentY = e.touches[0].clientY;
     const deltaY = startY.current - currentY;
     const newHeight = startHeight.current + deltaY;
@@ -370,7 +377,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
           <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
              
              {/* Map Panel */}
-             <div className="absolute inset-0 md:relative md:flex-1 bg-slate-800 z-0">
+             <div className="absolute inset-0 md:relative md:flex-1 bg-slate-800 z-0 isolate">
                 {!loading && !error && routeInfo.startCoords && routeInfo.endCoords ? (
                     <MapContainer 
                         center={routeInfo.startCoords} 
@@ -420,13 +427,13 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                     z-20 flex flex-col transition-all duration-300 ease-out
                 `}
                 style={{ height: window.innerWidth < 768 ? sheetHeight : 'auto' }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
              >
                 {/* Mobile Drag Handle */}
                 <div 
-                    className="w-full h-9 flex items-center justify-center cursor-pointer md:hidden shrink-0 touch-none"
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
+                    className="w-full h-9 flex items-center justify-center cursor-pointer md:hidden shrink-0"
                     onClick={handleHandleClick}
                 >
                     <div className="w-12 h-1.5 bg-slate-700 rounded-full"></div>
