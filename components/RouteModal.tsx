@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { X, Navigation, Car, Clock, MapPin, Bike, PersonStanding, Lock } from 'lucide-react';
+import { X, Navigation, Car, MapPin, Bike, PersonStanding, Lock, Activity, Server, Cpu } from 'lucide-react';
 import { Member } from '../types';
 import { CHURCH_ADDRESS } from '../constants';
 
@@ -131,6 +131,7 @@ interface RouteModalProps {
 export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [methodUsed, setMethodUsed] = useState<'plan1' | 'plan2' | 'plan3' | null>(null);
   
   // Sheet state
   const [sheetHeight, setSheetHeight] = useState('40%');
@@ -162,6 +163,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
     const calculateRoute = async () => {
       setLoading(true);
       setError('');
+      setMethodUsed(null);
 
       try {
         let churchCoords = null;
@@ -177,36 +179,62 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
             return;
         }
         
-        // Try precise address first
         let memberCoords = null;
+        let successPlan: 'plan1' | 'plan2' | 'plan3' | null = null;
+        
+        // Dados do membro
         const street = member.street ? member.street.trim() : '';
+        const number = member.number ? member.number.trim() : '';
         const neighborhood = member.neighborhood ? member.neighborhood.trim() : '';
         const city = member.city ? member.city.trim() : CHURCH_ADDRESS.city;
         const state = CHURCH_ADDRESS.state || 'Rio de Janeiro';
         const zip = member.zipCode ? member.zipCode.trim() : '';
 
-        // Strategy 1: Full Address
-        if (street) {
-             memberCoords = await getCoordinates(`${street}, ${neighborhood}, ${city}, ${state}, Brasil`);
+        // --- LÓGICA DE CASCATA (WATERFALL) ---
+
+        // Endpoint 1/3: Rua + Bairro (Alta precisão solicitada)
+        // Adicionamos City/State/Brasil para garantir que não busque em outro estado/país
+        if (!memberCoords && street && neighborhood) {
+             const query1 = `${street}, ${neighborhood}, ${city}, ${state}, Brasil`;
+             // console.log("Trying Endpoint 1:", query1);
+             memberCoords = await getCoordinates(query1);
+             if (memberCoords) successPlan = 'plan1';
         }
-        // Strategy 2: Zip
+
+        // Endpoint 2/3: Pelo CEP (Híbrido)
         if (!memberCoords && zip) {
-            memberCoords = await getCoordinates(`${zip}, Brasil`);
+            const query2 = `${zip}, Brasil`;
+            // console.log("Trying Endpoint 2:", query2);
+            memberCoords = await getCoordinates(query2);
+            if (memberCoords) successPlan = 'plan2';
         }
-        // Strategy 3: City Fallback
-        if (!memberCoords) {
-             memberCoords = await getCoordinates(`${city}, ${state}, Brasil`);
+
+        // Endpoint 3/3: Rua + CEP + Cidade + Estado (Forçado/Baixa Performance)
+        // Tenta combinar tudo se os anteriores falharam
+        if (!memberCoords && street) {
+             const query3 = `${street}, ${zip}, ${city}, ${state}, Brasil`;
+             // console.log("Trying Endpoint 3:", query3);
+             memberCoords = await getCoordinates(query3);
+             if (memberCoords) successPlan = 'plan3';
         }
 
         if (!memberCoords) {
-            setError('Falha ao localizar endereço do membro.');
+            // Última tentativa de desespero: Só a cidade e estado para não quebrar a UI
+            // Não marcamos successPlan para saber que falhou a precisão
+            memberCoords = await getCoordinates(`${city}, ${state}, Brasil`);
+        }
+
+        if (!memberCoords) {
+            setError('Falha crítica: Endereço não localizado pelos 3 endpoints.');
             setLoading(false);
             return;
         }
 
+        setMethodUsed(successPlan);
+
         const route = await getRouteData(churchCoords, memberCoords);
         if (!route) {
-            setError('Rota não encontrada.');
+            setError('Rota não encontrada entre a igreja e o destino.');
             setLoading(false);
             return;
         }
@@ -215,14 +243,18 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
         const durMin = Math.round(route.duration / 60); // Car Time
         
         // Estimations
-        const motoMin = Math.max(1, Math.round(durMin * 0.80)); // ~20% faster usually in traffic logic
+        const motoMin = Math.max(1, Math.round(durMin * 0.80)); // ~20% faster
         const walkMin = Math.round(distKm * 15); // ~15 min per km
 
-        // Pricing
-        const baseRate = 6.0;
-        const rawAvg = distKm * baseRate;
+        // Pricing Logic: 1km = R$8,00 base
+        // Margem de erro entre 6 e 10 reais
+        const baseRate = 8.0; 
+        const rawCalc = distKm * baseRate;
+        const minPrice = Math.floor(rawCalc * 0.8); // Margem baixa
+        const maxPrice = Math.ceil(rawCalc * 1.2); // Margem alta
+        const avgPrice = Math.round(rawCalc);
 
-        setPrice({ avg: Math.round(Math.max(7, rawAvg)) });
+        setPrice({ avg: avgPrice < 7 ? 7 : avgPrice }); // Mínimo Uber geralmente ~7 reais
 
         setRouteInfo({
             distanceKm: parseFloat(distKm.toFixed(1)),
@@ -237,7 +269,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
         setLoading(false);
       } catch (e) {
         console.error("Critical error in route calc", e);
-        setError("Erro interno.");
+        setError("Erro de conexão com API.");
         setLoading(false);
       }
     };
@@ -247,7 +279,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
 
   const firstName = member.fullName.split(' ')[0];
   
-  // Memoize icons to prevent re-creation on every render (drag) which causes Marker to re-mount and throw _leaflet_pos error
+  // Memoize icons
   const churchIcon = useMemo(() => createIcon('IGREJA', '#4169E1'), []);
   const memberIcon = useMemo(() => createIcon(firstName.toUpperCase(), '#10b981'), [firstName]);
 
@@ -255,7 +287,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsDragging(true);
     startY.current = e.touches[0].clientY;
-    // Get current height in pixels
     const el = e.currentTarget.closest('.bottom-sheet') as HTMLElement;
     startHeight.current = el ? el.offsetHeight : 0;
   };
@@ -263,10 +294,9 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return;
     const currentY = e.touches[0].clientY;
-    const deltaY = startY.current - currentY; // Positive = Drag Up
+    const deltaY = startY.current - currentY;
     const newHeight = startHeight.current + deltaY;
     
-    // Limits (pixels) roughly
     const maxHeight = window.innerHeight * 0.90;
     const minHeight = window.innerHeight * 0.25;
 
@@ -277,19 +307,16 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
 
   const handleTouchEnd = () => {
     setIsDragging(false);
-    // Snap logic
-    const currentPixelHeight = parseFloat(sheetHeight); // Assuming px if set by drag
+    const currentPixelHeight = parseFloat(sheetHeight);
     const windowHeight = window.innerHeight;
     
     if (sheetHeight.includes('%')) {
-        // Toggle logic if clicked instead of dragged
         if (parseInt(sheetHeight) < 50) {
             setSheetHeight('85%');
         } else {
             setSheetHeight('40%');
         }
     } else {
-        // Drag snap
         if (currentPixelHeight > windowHeight * 0.5) {
             setSheetHeight('85%');
         } else {
@@ -298,7 +325,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
     }
   };
 
-  // Allow clicking the handle to toggle
   const handleHandleClick = () => {
      if (sheetHeight === '85%' || (sheetHeight.endsWith('px') && parseFloat(sheetHeight) > window.innerHeight * 0.5)) {
          setSheetHeight('40%');
@@ -306,6 +332,9 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
          setSheetHeight('85%');
      }
   };
+
+  // String formatada do destino
+  const destinationString = `Destino: ${member.street || ''}, nº${member.number || 'S/N'} - ${member.neighborhood || ''} | ${member.city || ''}`;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-0 md:p-4">
@@ -319,7 +348,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                 </div>
                 <div className="flex flex-col">
                     <h3 className="font-bold text-white text-base">Trajeto de Visita</h3>
-                    <p className="text-xs text-slate-400">Destino: {member.street}</p>
+                    <p className="text-xs text-slate-400">{destinationString}</p>
                 </div>
              </div>
              <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
@@ -356,8 +385,22 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                         <MapController coords={[routeInfo.startCoords, routeInfo.endCoords]} />
                     </MapContainer>
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <div className="animate-spin w-8 h-8 border-2 border-royal-500 rounded-full border-t-transparent"></div>
+                    <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                        {loading ? (
+                           <div className="flex flex-col items-center gap-4 p-6 text-center animate-pulse">
+                               <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-royal-500/30 shadow-[0_0_20px_rgba(65,105,225,0.2)]">
+                                  <Server className="text-royal-500 animate-bounce" size={32} />
+                               </div>
+                               <div className="space-y-1">
+                                   <h3 className="text-lg font-bold text-white">Backend trabalhando com API</h3>
+                                   <p className="text-sm text-slate-400 flex items-center justify-center gap-2">
+                                     <Cpu size={14} className="animate-spin" /> Processando geolocalização...
+                                   </p>
+                               </div>
+                           </div>
+                        ) : (
+                           <div className="text-red-400 text-sm p-4 text-center">{error}</div>
+                        )}
                     </div>
                 )}
              </div>
@@ -389,15 +432,17 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                 {/* Content Container */}
                 <div className="p-6 pt-2 md:pt-6 flex flex-col gap-4 overflow-y-auto h-full scrollbar-hide">
                     
-                    {loading ? (
-                         <div className="text-center text-slate-500 py-4">Calculando rota...</div>
-                    ) : error ? (
-                        <div className="text-center text-red-400 py-4">{error}</div>
-                    ) : (
+                    {!loading && !error && (
                         <>
                             {/* Mobile Layout */}
                             <div className="md:hidden">
-                                {/* Header */}
+                                {/* Destination Header Mobile */}
+                                <div className="mb-4 pb-2 border-b border-slate-800">
+                                   <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Destino</p>
+                                   <p className="text-xs text-slate-300 leading-snug">{destinationString}</p>
+                                </div>
+
+                                {/* Header Stats */}
                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-800">
                                     <div>
                                         <h3 className="text-xl font-bold text-white leading-tight">Carro de Aplicativo</h3>
@@ -411,10 +456,8 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                     </div>
                                 </div>
 
-                                {/* Stacked Stats List (Ordered as requested) */}
+                                {/* Stacked Stats List */}
                                 <div className="flex flex-col gap-3 mb-4">
-                                    
-                                    {/* 1. Distância */}
                                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-slate-400">
                                             <MapPin size={16} className="text-royal-500"/>
@@ -422,8 +465,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                         </div>
                                         <p className="text-white font-semibold">{routeInfo.distanceKm} km</p>
                                     </div>
-                                    
-                                    {/* 2. Carro */}
                                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-slate-400">
                                             <Car size={16} className="text-blue-400"/>
@@ -431,8 +472,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                         </div>
                                         <p className="text-white font-semibold">~{routeInfo.durationMin} min</p>
                                     </div>
-
-                                    {/* 3. Moto */}
                                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-slate-400">
                                             <Bike size={16} className="text-yellow-400"/>
@@ -440,8 +479,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                         </div>
                                         <p className="text-white font-semibold">~{routeInfo.motoDurationMin} min</p>
                                     </div>
-
-                                    {/* 4. A pé */}
                                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-slate-400">
                                             <PersonStanding size={16} className="text-orange-500"/>
@@ -452,7 +489,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                 </div>
                             </div>
 
-                            {/* Desktop Layout (Hidden on Mobile) */}
+                            {/* Desktop Layout */}
                             <div className="hidden md:block space-y-4">
                                 <div className="bg-slate-900 rounded-lg p-5 border border-slate-800 shadow-lg">
                                     <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Valor Estimado</span>
@@ -460,7 +497,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                         <span className="text-sm text-slate-400">R$</span>
                                         <span className="text-4xl font-bold text-white">{price.avg},00</span>
                                     </div>
-                                    <p className="text-[10px] text-slate-600 mt-2">Tarifa base R$ 6,00/km.</p>
+                                    <p className="text-[10px] text-slate-600 mt-2">Tarifa base R$ 8,00/km.</p>
                                 </div>
 
                                 <div className="space-y-3">
@@ -483,7 +520,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                 </div>
                             </div>
 
-                            {/* Action Button - Always at bottom */}
+                            {/* Action Button */}
                             <div className="mt-auto pt-2 relative">
                                 <a 
                                     href={isReadOnly ? "#" : `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(CHURCH_ADDRESS.fullAddress)}&destination=${encodeURIComponent(`${member.street}, ${member.number}, ${member.city}`)}&travelmode=driving`}
@@ -499,6 +536,25 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                     </div>
                                 )}
                             </div>
+
+                            {/* Tags de status da API (Endpoint 1/2/3) */}
+                             <div className="flex flex-wrap gap-2 justify-center md:justify-start mt-2 px-6 pb-6 md:px-0 md:pb-0">
+                                {methodUsed === 'plan1' && (
+                                    <span className="text-[10px] text-emerald-400 bg-emerald-900/40 px-2 py-1 rounded border border-emerald-800 flex items-center gap-1">
+                                        <Activity size={10} /> Endpoint 1/3 • Rua + Bairro
+                                    </span>
+                                )}
+                                {methodUsed === 'plan2' && (
+                                    <span className="text-[10px] text-yellow-400 bg-yellow-900/40 px-2 py-1 rounded border border-yellow-800 flex items-center gap-1">
+                                        <Activity size={10} /> Endpoint 2/3 • Busca por CEP
+                                    </span>
+                                )}
+                                {methodUsed === 'plan3' && (
+                                    <span className="text-[10px] text-red-400 bg-red-900/40 px-2 py-1 rounded border border-red-800 flex items-center gap-1">
+                                        <Activity size={10} /> Endpoint 3/3 • Rua + CEP + Cidade + Estado
+                                    </span>
+                                )}
+                             </div>
                         </>
                     )}
                 </div>
