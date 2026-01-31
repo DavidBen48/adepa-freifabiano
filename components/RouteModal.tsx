@@ -54,19 +54,68 @@ const MapFitter = ({ coords }: { coords: [number, number][] }) => {
     useEffect(() => {
         if (coords.length > 0) {
             const bounds = L.latLngBounds(coords);
-            map.fitBounds(bounds, { padding: [50, 50] });
+            map.fitBounds(bounds, { padding: [80, 80] });
         }
     }, [coords, map]);
     return null;
 };
 
-// Icons (CSS based divIcon to avoid asset issues)
+// Icons - Estilo "Balão Retangular com Ponta"
 const createIcon = (label: string, color: string) => {
     return L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="background-color: ${color}; width: 100px; padding: 4px; border-radius: 4px; border: 2px solid white; text-align: center; color: white; font-weight: bold; font-size: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: relative; top: -15px; left: -50px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${label}</div><div style="width: 12px; height: 12px; background-color: ${color}; transform: rotate(45deg); border: 2px solid white; position: absolute; bottom: -4px; left: -6px; z-index: -1;"></div>`,
+        className: 'custom-map-marker',
+        // HTML construído para centralizar a ponta exatamente na coordenada (0,0 relativo ao anchor)
+        html: `
+            <div style="position: relative; width: 0; height: 0;">
+                <div style="
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    transform: translate(-50%, -10px); /* Centraliza horizontalmente e sobe para deixar espaço para a ponta */
+                    background-color: ${color};
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 4px; /* Retangular */
+                    font-weight: bold;
+                    font-size: 12px;
+                    white-space: nowrap;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    ${label}
+                    <!-- A ponta do balão -->
+                    <div style="
+                        position: absolute;
+                        bottom: -6px;
+                        left: 50%;
+                        transform: translateX(-50%) rotate(45deg);
+                        width: 12px;
+                        height: 12px;
+                        background-color: ${color};
+                        border-bottom: 1px solid rgba(0,0,0,0.1);
+                        border-right: 1px solid rgba(0,0,0,0.1);
+                        z-index: -1;
+                    "></div>
+                </div>
+                <!-- Ponto de precisão na base (opcional, para visualização exata do local) -->
+                <div style="
+                    position: absolute;
+                    width: 8px;
+                    height: 8px;
+                    background-color: white;
+                    border: 2px solid ${color};
+                    border-radius: 50%;
+                    top: -4px;
+                    left: -4px;
+                    box-shadow: 0 0 0 2px rgba(0,0,0,0.3);
+                "></div>
+            </div>
+        `,
         iconSize: [0, 0],
-        iconAnchor: [0, 0]
+        iconAnchor: [0, 0] 
     });
 };
 
@@ -235,21 +284,21 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose }) => {
                         {/* PLANO A: Verde */}
                         {!loading && !error && methodUsed === 'plan1' && (
                             <span className="text-[10px] bg-emerald-900/30 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded flex items-center gap-1 font-medium animate-in fade-in zoom-in duration-300">
-                                <CheckCircle2 size={10} /> Endpoint 1/3 • Alta Precisão (Rua + Bairro)
+                                <CheckCircle2 size={10} /> Endpoint 1/3 • alta performance e alta precisão
                             </span>
                         )}
                         
                         {/* PLANO B: Laranja */}
                         {!loading && !error && methodUsed === 'plan2' && (
                             <span className="text-[10px] bg-orange-900/30 text-orange-400 border border-orange-900 px-2 py-0.5 rounded flex items-center gap-1 font-medium animate-in fade-in zoom-in duration-300">
-                                <Activity size={10} /> Endpoint 2/3 • Aproximação (Via CEP)
+                                <Activity size={10} /> Endpoint 2/3 • performance hibrido e baixa precisão
                             </span>
                         )}
                         
                         {/* PLANO C: Vermelho */}
                         {!loading && !error && methodUsed === 'plan3' && (
                             <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-900 px-2 py-0.5 rounded flex items-center gap-1 font-medium animate-in fade-in zoom-in duration-300">
-                                <AlertTriangle size={10} /> Endpoint 3/3 • Varredura Híbrida
+                                <AlertTriangle size={10} /> Endpoint 3/3 • baixa performance e precisão forçada
                             </span>
                         )}
                     </div>
@@ -365,19 +414,14 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose }) => {
                             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                         />
                         
-                        {/* Rota */}
+                        {/* Rota: Linha Branca Linear Sólida */}
                         <Polyline 
                             positions={routeInfo.path} 
-                            color="black" // Linha preta como solicitado
-                            weight={5}
-                            opacity={0.8}
-                        />
-                        <Polyline 
-                            positions={routeInfo.path} 
-                            color="#3b82f6" 
-                            weight={2}
+                            color="#ffffff" 
+                            weight={4}
                             opacity={1}
-                            dashArray="5, 10"
+                            lineCap="round"
+                            lineJoin="round"
                         />
 
                         {/* Markers Customizados */}

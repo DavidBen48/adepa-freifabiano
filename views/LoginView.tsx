@@ -34,6 +34,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onViewPoli
         <h2 className="text-2xl text-slate-400 font-light mb-8">ADEPA - Frei Fabiano</h2>
         <div className="mt-auto">
           <p className="text-sm text-slate-600 uppercase tracking-widest font-semibold">Developed by the CEO of Ben.AI: David Ben</p>
+          <p className="text-[10px] text-slate-700 mt-1 uppercase tracking-wider font-mono">versão 2.1.2</p>
         </div>
       </div>
 
