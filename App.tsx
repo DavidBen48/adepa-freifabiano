@@ -181,28 +181,29 @@ const App = () => {
       </header>
 
       {/* Tabs / Navigation */}
-      <div className="bg-slate-900/50 border-b border-slate-800 overflow-x-auto">
-        <div className="max-w-7xl mx-auto px-4 flex gap-6 min-w-max">
+      <div className="bg-slate-900/50 border-b border-slate-800 w-full">
+        {/* Changed from min-w-max to w-full with flex-1 for equal distribution on mobile */}
+        <div className="max-w-7xl mx-auto flex justify-between w-full">
           <button
             onClick={() => { setView(ViewState.MEMBERS_LIST); setMemberToEdit(undefined); }}
-            className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === ViewState.MEMBERS_LIST ? 'border-royal-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`flex-1 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 ${view === ViewState.MEMBERS_LIST ? 'border-royal-500 text-white bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             <Users size={18} />
-            Membros
+            <span>Membros</span>
           </button>
           <button
             onClick={initiateAdd}
-            className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === ViewState.ADD_MEMBER ? 'border-royal-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`flex-1 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 ${view === ViewState.ADD_MEMBER ? 'border-royal-500 text-white bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             <UserPlus size={18} />
-            {memberToEdit ? 'Editar Membro' : 'Adicionar Membros'}
+            <span>{memberToEdit ? 'Editar' : 'Adicionar'}</span>
           </button>
           <button
             onClick={() => { setView(ViewState.VISIT_MEMBER); setMemberToEdit(undefined); }}
-            className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === ViewState.VISIT_MEMBER ? 'border-royal-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`flex-1 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 ${view === ViewState.VISIT_MEMBER ? 'border-royal-500 text-white bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             <Map size={18} />
-            Visitar Membro
+            <span>Visitar</span>
           </button>
         </div>
       </div>

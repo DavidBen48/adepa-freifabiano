@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { X, Navigation, Car, Clock, MapPin, AlertCircle, CheckCircle2, AlertTriangle, Activity, Lock, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Navigation, Car, Clock, MapPin, Bike, PersonStanding, Lock } from 'lucide-react';
 import { Member } from '../types';
 import { CHURCH_ADDRESS } from '../constants';
 
@@ -9,7 +9,7 @@ import { CHURCH_ADDRESS } from '../constants';
 const getCoordinates = async (address: string) => {
   try {
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`, {
-        headers: { "User-Agent": "MembersAI-ADEPA/1.0" }
+      headers: { "User-Agent": "MembersAI-ADEPA/1.0" }
     });
     const data = await response.json();
     if (data && data.length > 0) {
@@ -41,15 +41,29 @@ const getRouteData = async (start: {lat: number, lon: number}, end: {lat: number
     }
 };
 
-// --- Custom Components ---
-const MapFitter = ({ coords }: { coords: [number, number][] }) => {
+// --- Custom Component to Fit Bounds Automatically ---
+// Ensures the map *always* shows both points and the route
+const MapController = ({ coords }: { coords: [number, number][] }) => {
     const map = useMap();
+    
     useEffect(() => {
-        if (coords.length > 0) {
+        if (coords.length > 1) {
             const bounds = L.latLngBounds(coords);
-            map.fitBounds(bounds, { padding: [80, 80] });
+            // Invalidate size to prevent gray tiles if container resized
+            map.invalidateSize();
+            // Fit bounds with padding to ensure markers aren't on the edge
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            
+            // Re-run shortly after to catch any layout shifts (like bottom sheet animation)
+            const timer = setTimeout(() => {
+                map.invalidateSize();
+                map.fitBounds(bounds, { padding: [50, 80], maxZoom: 16 });
+            }, 600);
+
+            return () => clearTimeout(timer);
         }
     }, [coords, map]);
+    
     return null;
 };
 
@@ -117,28 +131,37 @@ interface RouteModalProps {
 export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [methodUsed, setMethodUsed] = useState<'plan1' | 'plan2' | 'plan3' | null>(null);
   
-  // Sheet state for Mobile (Expanded vs Collapsed)
-  const [isSheetExpanded, setIsSheetExpanded] = useState(false);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const dragStartY = useRef<number | null>(null);
+  // Sheet state
+  const [sheetHeight, setSheetHeight] = useState('40%');
+  const [isDragging, setIsDragging] = useState(false);
+  const startY = useRef<number>(0);
+  const startHeight = useRef<number>(0);
 
   const [routeInfo, setRouteInfo] = useState<{
       distanceKm: number;
-      durationMin: number;
+      durationMin: number; // Carro
+      motoDurationMin: number;
+      walkingDurationMin: number;
       path: [number, number][];
       startCoords: [number, number] | null;
       endCoords: [number, number] | null;
-  }>({ distanceKm: 0, durationMin: 0, path: [], startCoords: null, endCoords: null });
+  }>({ 
+      distanceKm: 0, 
+      durationMin: 0, 
+      motoDurationMin: 0, 
+      walkingDurationMin: 0, 
+      path: [], 
+      startCoords: null, 
+      endCoords: null 
+  });
 
-  const [price, setPrice] = useState<{ avg: number, min: number, max: number }>({ avg: 0, min: 0, max: 0 });
+  const [price, setPrice] = useState<{ avg: number }>({ avg: 0 });
 
   useEffect(() => {
     const calculateRoute = async () => {
       setLoading(true);
       setError('');
-      setMethodUsed(null);
 
       try {
         let churchCoords = null;
@@ -154,28 +177,25 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
             return;
         }
         
+        // Try precise address first
         let memberCoords = null;
-        let successPlan: 'plan1' | 'plan2' | 'plan3' | null = null;
         const street = member.street ? member.street.trim() : '';
         const neighborhood = member.neighborhood ? member.neighborhood.trim() : '';
         const city = member.city ? member.city.trim() : CHURCH_ADDRESS.city;
         const state = CHURCH_ADDRESS.state || 'Rio de Janeiro';
         const zip = member.zipCode ? member.zipCode.trim() : '';
 
-        if (!memberCoords && street && neighborhood) {
-            const query1 = `${street}, ${neighborhood}, ${city}, ${state}, Brasil`;
-            memberCoords = await getCoordinates(query1);
-            if (memberCoords) successPlan = 'plan1';
+        // Strategy 1: Full Address
+        if (street) {
+             memberCoords = await getCoordinates(`${street}, ${neighborhood}, ${city}, ${state}, Brasil`);
         }
+        // Strategy 2: Zip
         if (!memberCoords && zip) {
-            const query2 = `${zip}, Brasil`;
-            memberCoords = await getCoordinates(query2);
-            if (memberCoords) successPlan = 'plan2';
+            memberCoords = await getCoordinates(`${zip}, Brasil`);
         }
-        if (!memberCoords && street && zip) {
-             const query3 = `${street}, ${city}, ${state}, ${zip}, Brasil`;
-             memberCoords = await getCoordinates(query3);
-             if (memberCoords) successPlan = 'plan3';
+        // Strategy 3: City Fallback
+        if (!memberCoords) {
+             memberCoords = await getCoordinates(`${city}, ${state}, Brasil`);
         }
 
         if (!memberCoords) {
@@ -183,8 +203,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
             setLoading(false);
             return;
         }
-
-        setMethodUsed(successPlan);
 
         const route = await getRouteData(churchCoords, memberCoords);
         if (!route) {
@@ -194,28 +212,26 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
         }
 
         const distKm = route.distance / 1000;
-        const durMin = Math.round(route.duration / 60);
+        const durMin = Math.round(route.duration / 60); // Car Time
+        
+        // Estimations
+        const motoMin = Math.max(1, Math.round(durMin * 0.80)); // ~20% faster usually in traffic logic
+        const walkMin = Math.round(distKm * 15); // ~15 min per km
+
+        // Pricing
         const baseRate = 6.0;
         const rawAvg = distKm * baseRate;
-        const rawMin = distKm * 5.0; 
-        const rawMax = distKm * 8.0;
 
-        setPrice({
-            avg: Math.round(Math.max(7, rawAvg)),
-            min: Math.floor(Math.max(6, rawMin)),
-            max: Math.ceil(Math.max(8, rawMax))
-        });
-
-        const walkingMinutes = Math.round(distKm * 16);
+        setPrice({ avg: Math.round(Math.max(7, rawAvg)) });
 
         setRouteInfo({
             distanceKm: parseFloat(distKm.toFixed(1)),
             durationMin: durMin,
+            motoDurationMin: motoMin,
+            walkingDurationMin: walkMin,
             path: route.geometry,
             startCoords: [churchCoords.lat, churchCoords.lon],
             endCoords: [memberCoords.lat, memberCoords.lon],
-            // @ts-ignore
-            walkingTime: walkingMinutes
         });
 
         setLoading(false);
@@ -230,36 +246,72 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
   }, [member]);
 
   const firstName = member.fullName.split(' ')[0];
+  
+  // Memoize icons to prevent re-creation on every render (drag) which causes Marker to re-mount and throw _leaflet_pos error
+  const churchIcon = useMemo(() => createIcon('IGREJA', '#4169E1'), []);
+  const memberIcon = useMemo(() => createIcon(firstName.toUpperCase(), '#10b981'), [firstName]);
 
-  // Logic for Dragging Sheet
+  // --- Drag & Drop Logic for Mobile ---
   const handleTouchStart = (e: React.TouchEvent) => {
-    dragStartY.current = e.touches[0].clientY;
+    setIsDragging(true);
+    startY.current = e.touches[0].clientY;
+    // Get current height in pixels
+    const el = e.currentTarget.closest('.bottom-sheet') as HTMLElement;
+    startHeight.current = el ? el.offsetHeight : 0;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!dragStartY.current) return;
+    if (!isDragging) return;
     const currentY = e.touches[0].clientY;
-    const diff = dragStartY.current - currentY;
+    const deltaY = startY.current - currentY; // Positive = Drag Up
+    const newHeight = startHeight.current + deltaY;
     
-    // Simple logic: if dragging up significantly, expand. If dragging down, collapse.
-    if (diff > 50 && !isSheetExpanded) {
-        setIsSheetExpanded(true);
-        dragStartY.current = null;
-    } else if (diff < -50 && isSheetExpanded) {
-        setIsSheetExpanded(false);
-        dragStartY.current = null;
+    // Limits (pixels) roughly
+    const maxHeight = window.innerHeight * 0.90;
+    const minHeight = window.innerHeight * 0.25;
+
+    if (newHeight > minHeight && newHeight < maxHeight) {
+        setSheetHeight(`${newHeight}px`);
     }
   };
 
-  const toggleSheet = () => {
-    setIsSheetExpanded(!isSheetExpanded);
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    // Snap logic
+    const currentPixelHeight = parseFloat(sheetHeight); // Assuming px if set by drag
+    const windowHeight = window.innerHeight;
+    
+    if (sheetHeight.includes('%')) {
+        // Toggle logic if clicked instead of dragged
+        if (parseInt(sheetHeight) < 50) {
+            setSheetHeight('85%');
+        } else {
+            setSheetHeight('40%');
+        }
+    } else {
+        // Drag snap
+        if (currentPixelHeight > windowHeight * 0.5) {
+            setSheetHeight('85%');
+        } else {
+            setSheetHeight('40%');
+        }
+    }
+  };
+
+  // Allow clicking the handle to toggle
+  const handleHandleClick = () => {
+     if (sheetHeight === '85%' || (sheetHeight.endsWith('px') && parseFloat(sheetHeight) > window.innerHeight * 0.5)) {
+         setSheetHeight('40%');
+     } else {
+         setSheetHeight('85%');
+     }
   };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-0 md:p-4">
        <div className="bg-slate-900 md:border md:border-slate-700 md:rounded-xl w-full max-w-4xl shadow-2xl flex flex-col h-full md:h-[90vh] overflow-hidden relative">
           
-          {/* Header - Desktop Only (Hidden on mobile to maximize map) */}
+          {/* Header - Desktop Only */}
           <div className="hidden md:flex p-4 border-b border-slate-800 justify-between items-center bg-slate-900 shrink-0 z-50">
              <div className="flex items-center gap-3">
                 <div className="p-2 bg-royal-900/30 rounded-full">
@@ -267,9 +319,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                 </div>
                 <div className="flex flex-col">
                     <h3 className="font-bold text-white text-base">Trajeto de Visita</h3>
-                    <p className="text-xs text-slate-400">
-                        Destino: {member.street}
-                    </p>
+                    <p className="text-xs text-slate-400">Destino: {member.street}</p>
                 </div>
              </div>
              <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
@@ -287,7 +337,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
 
           <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
              
-             {/* Map Panel (Mobile: Fullscreen Background, Desktop: Right Side) */}
+             {/* Map Panel */}
              <div className="absolute inset-0 md:relative md:flex-1 bg-slate-800 z-0">
                 {!loading && !error && routeInfo.startCoords && routeInfo.endCoords ? (
                     <MapContainer 
@@ -301,9 +351,9 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                         />
                         <Polyline positions={routeInfo.path} color="#ffffff" weight={4} opacity={1} lineCap="round" lineJoin="round" />
-                        <Marker position={routeInfo.startCoords} icon={createIcon('IGREJA', '#4169E1')} />
-                        <Marker position={routeInfo.endCoords} icon={createIcon(firstName.toUpperCase(), '#10b981')} />
-                        <MapFitter coords={[routeInfo.startCoords, routeInfo.endCoords]} />
+                        <Marker position={routeInfo.startCoords} icon={churchIcon} />
+                        <Marker position={routeInfo.endCoords} icon={memberIcon} />
+                        <MapController coords={[routeInfo.startCoords, routeInfo.endCoords]} />
                     </MapContainer>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -312,31 +362,32 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                 )}
              </div>
 
-             {/* Stats Panel (Mobile: Bottom Sheet Overlay, Desktop: Left Side) */}
+             {/* Stats Panel (Bottom Sheet) */}
              <div 
-                ref={sheetRef}
                 className={`
+                    bottom-sheet
                     absolute bottom-0 w-full md:relative md:w-80 md:h-auto 
                     bg-slate-900 md:bg-slate-950 
                     rounded-t-3xl md:rounded-none
                     shadow-[0_-5px_20px_rgba(0,0,0,0.7)] md:shadow-none
                     border-t border-slate-700/50 md:border-t-0 md:border-r md:border-slate-800
-                    z-20 flex flex-col transition-all duration-300 ease-in-out
-                    ${isSheetExpanded ? 'h-[85%]' : 'h-[40%] md:h-auto'}
+                    z-20 flex flex-col transition-all duration-300 ease-out
                 `}
+                style={{ height: window.innerWidth < 768 ? sheetHeight : 'auto' }}
              >
                 {/* Mobile Drag Handle */}
                 <div 
-                    className="w-full h-8 flex items-center justify-center cursor-pointer md:hidden shrink-0"
+                    className="w-full h-9 flex items-center justify-center cursor-pointer md:hidden shrink-0 touch-none"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
-                    onClick={toggleSheet}
+                    onTouchEnd={handleTouchEnd}
+                    onClick={handleHandleClick}
                 >
                     <div className="w-12 h-1.5 bg-slate-700 rounded-full"></div>
                 </div>
 
                 {/* Content Container */}
-                <div className="p-6 pt-2 md:pt-6 flex flex-col gap-6 overflow-y-auto h-full">
+                <div className="p-6 pt-2 md:pt-6 flex flex-col gap-4 overflow-y-auto h-full scrollbar-hide">
                     
                     {loading ? (
                          <div className="text-center text-slate-500 py-4">Calculando rota...</div>
@@ -344,7 +395,7 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                         <div className="text-center text-red-400 py-4">{error}</div>
                     ) : (
                         <>
-                            {/* Mobile Layout (Bottom Sheet Content) */}
+                            {/* Mobile Layout */}
                             <div className="md:hidden">
                                 {/* Header */}
                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-800">
@@ -360,25 +411,43 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                     </div>
                                 </div>
 
-                                {/* Stats Info (Stacked List) */}
+                                {/* Stacked Stats List (Ordered as requested) */}
                                 <div className="flex flex-col gap-3 mb-4">
-                                    {/* Item 1: Distancia */}
+                                    
+                                    {/* 1. Distância */}
                                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-slate-400">
                                             <MapPin size={16} className="text-royal-500"/>
                                             <span className="text-xs uppercase font-bold">Distância</span>
                                         </div>
-                                        <p className="text-white font-semibold text-lg">{routeInfo.distanceKm} km</p>
+                                        <p className="text-white font-semibold">{routeInfo.distanceKm} km</p>
                                     </div>
                                     
-                                    {/* Item 2: A pé */}
+                                    {/* 2. Carro */}
                                     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-slate-400">
-                                            <Clock size={16} className="text-orange-500"/>
+                                            <Car size={16} className="text-blue-400"/>
+                                            <span className="text-xs uppercase font-bold">Carro</span>
+                                        </div>
+                                        <p className="text-white font-semibold">~{routeInfo.durationMin} min</p>
+                                    </div>
+
+                                    {/* 3. Moto */}
+                                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-slate-400">
+                                            <Bike size={16} className="text-yellow-400"/>
+                                            <span className="text-xs uppercase font-bold">Moto</span>
+                                        </div>
+                                        <p className="text-white font-semibold">~{routeInfo.motoDurationMin} min</p>
+                                    </div>
+
+                                    {/* 4. A pé */}
+                                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-slate-400">
+                                            <PersonStanding size={16} className="text-orange-500"/>
                                             <span className="text-xs uppercase font-bold">A pé</span>
                                         </div>
-                                        {/* @ts-ignore */}
-                                        <p className="text-white font-semibold text-lg">~{routeInfo.walkingTime} min</p>
+                                        <p className="text-white font-semibold">~{routeInfo.walkingDurationMin} min</p>
                                     </div>
                                 </div>
                             </div>
@@ -394,23 +463,22 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                     <p className="text-[10px] text-slate-600 mt-2">Tarifa base R$ 6,00/km.</p>
                                 </div>
 
-                                <div className="flex items-center gap-4 text-slate-200">
-                                    <div className="w-10 h-10 rounded bg-slate-900 flex items-center justify-center border border-slate-800">
-                                        <MapPin size={20} className="text-royal-500" />
+                                <div className="space-y-3">
+                                    <div className="flex justify-between text-sm text-slate-300 border-b border-slate-800 pb-2">
+                                        <span>Distância</span>
+                                        <span className="font-bold">{routeInfo.distanceKm} km</span>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">Distância</p>
-                                        <p className="font-semibold text-lg">{routeInfo.distanceKm} km</p>
+                                    <div className="flex justify-between text-sm text-slate-300 border-b border-slate-800 pb-2">
+                                        <span>Carro</span>
+                                        <span className="font-bold">{routeInfo.durationMin} min</span>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center gap-4 text-slate-200">
-                                    <div className="w-10 h-10 rounded bg-slate-900 flex items-center justify-center border border-slate-800">
-                                        <Clock size={20} className="text-orange-500" />
+                                    <div className="flex justify-between text-sm text-slate-300 border-b border-slate-800 pb-2">
+                                        <span>Moto</span>
+                                        <span className="font-bold">{routeInfo.motoDurationMin} min</span>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">Duração</p>
-                                        <p className="font-semibold text-lg">{routeInfo.durationMin} min</p>
+                                     <div className="flex justify-between text-sm text-slate-300">
+                                        <span>Caminhando</span>
+                                        <span className="font-bold">{routeInfo.walkingDurationMin} min</span>
                                     </div>
                                 </div>
                             </div>
@@ -431,13 +499,6 @@ export const RouteModal: React.FC<RouteModalProps> = ({ member, onClose, isReadO
                                     </div>
                                 )}
                             </div>
-                        
-                            {/* Tags de status da API (Plano A/B/C) */}
-                             <div className="flex flex-wrap gap-2 justify-center md:justify-start mt-2">
-                                {methodUsed === 'plan1' && <span className="text-[10px] text-emerald-500 bg-emerald-900/20 px-2 py-1 rounded">Alta Precisão</span>}
-                                {methodUsed === 'plan2' && <span className="text-[10px] text-orange-500 bg-orange-900/20 px-2 py-1 rounded">Precisão Média</span>}
-                                {methodUsed === 'plan3' && <span className="text-[10px] text-red-500 bg-red-900/20 px-2 py-1 rounded">Baixa Precisão</span>}
-                             </div>
                         </>
                     )}
                 </div>
